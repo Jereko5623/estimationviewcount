@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total View Count Tracker</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/odometer/themes/odometer-theme-default.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .odometer {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .inputs {
+            margin-bottom: 20px;
+        }
+        .inputs input {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/odometer/odometer.min.js"></script>
+    <script>
+        let intervalId, hourIntervalId;
+
+        // Function to fetch views from YouTube API
+        async function fetchViews(apiKey, videoId) {
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`);
+            const data = await response.json();
+            const views = data.items[0].statistics.viewCount;
+            return parseInt(views);
+        }
+
+        // Function to update the total view count every hour
+        function updateViewsEveryHour(apiKey, videoId) {
+            fetchViews(apiKey, videoId).then((totalViews) => {
+                localStorage.setItem('totalViews', totalViews);
+                document.querySelector('.odometer').innerHTML = totalViews;
+            });
+            hourIntervalId = setInterval(async () => {
+                const totalViews = await fetchViews(apiKey, videoId);
+                localStorage.setItem('totalViews', totalViews);
+                document.querySelector('.odometer').innerHTML = totalViews;
+            }, 3600000); // 1 hour interval
+        }
+
+        // Function to update the total view count at intervals by adding specified views
+        function addViewsAtInterval(interval, viewsToAdd) {
+            intervalId = setInterval(() => {
+                let totalViews = parseInt(localStorage.getItem('totalViews')) || 0;
+                totalViews += viewsToAdd;
+                localStorage.setItem('totalViews', totalViews);
+                document.querySelector('.odometer').innerHTML = totalViews;
+            }, interval);
+        }
+
+        // Function to start updating views based on user input
+        function startUpdatingViews() {
+            const interval = parseInt(document.getElementById('interval').value) * 1000;
+            const viewsToAdd = parseInt(document.getElementById('viewsToAdd').value);
+            const apiKey = document.getElementById('apiKey').value;
+            const videoId = document.getElementById('videoId').value;
+
+            // Stop any existing intervals
+            if (intervalId) clearInterval(intervalId);
+            if (hourIntervalId) clearInterval(hourIntervalId);
+
+            // Start the view adding interval and the hourly fetch
+            addViewsAtInterval(interval, viewsToAdd);
+            updateViewsEveryHour(apiKey, videoId);
+        }
+
+        // Function to stop updating views
+        function stopUpdatingViews() {
+            if (intervalId) clearInterval(intervalId);
+            if (hourIntervalId) clearInterval(hourIntervalId);
+        }
+
+        // Function to reset the total view count
+        function resetTotalViews() {
+            if (intervalId) clearInterval(intervalId);
+            if (hourIntervalId) clearInterval(hourIntervalId);
+            localStorage.setItem('totalViews', 0);
+            document.querySelector('.odometer').innerHTML = 0;
+        }
+
+        // Function to set the initial view count
+        function setInitialCount() {
+            const initialViews = parseInt(document.getElementById('initialViews').value) || 0;
+            localStorage.setItem('totalViews', initialViews);
+            document.querySelector('.odometer').innerHTML = initialViews;
+        }
+
+        window.onload = function() {
+            const totalViews = parseInt(localStorage.getItem('totalViews')) || 0;
+            document.querySelector('.odometer').innerHTML = totalViews;
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Total View Count Tracker</h1>
+        <div class="odometer" id="totalViews">0</div>
+        <div class="inputs">
+            <input type="text" id="apiKey" placeholder="YouTube API Key" />
+            <input type="text" id="videoId" placeholder="Video ID" />
+            <input type="number" id="initialViews" placeholder="Initial Views" />
+            <input type="number" id="interval" placeholder="Interval in seconds" />
+            <input type="number" id="viewsToAdd" placeholder="Views to Add" />
+        </div>
+        <button onclick="setInitialCount()">Set Initial Count</button>
+        <button onclick="startUpdatingViews()">Start</button>
+        <button onclick="stopUpdatingViews()">Stop</button>
+        <button onclick="resetTotalViews()">Reset</button>
+    </div>
+</body>
+</html>
